@@ -1,0 +1,139 @@
+--How many campaign and sources does the company use? Which sources are used for each campaign?
+SELECT DISTINCT utm_campaign FROM page_visits;
+
+SELECT DISTINCT utm_source FROM page_visits;
+
+SELECT utm_source, utm_campaign 
+FROM page_visits
+GROUP BY 1, 2;
+
+--What pages are on the company's website?
+SELECT DISTINCT page_name FROM page_visits;
+
+--How many first touches is each campaign responsible for?
+WITH first_touch AS (
+SELECT user_id,
+       MIN(timestamp) as first_touch_at,
+       utm_source,
+       utm_campaign
+FROM page_visits
+GROUP BY 1
+)
+SELECT utm_campaign, 
+       utm_source,
+       COUNT(first_touch_at)
+FROM first_touch
+GROUP BY 1;
+--(codecademy solution)
+WITH first_touch AS (
+SELECT user_id,
+       MIN(timestamp) as first_touch_at
+FROM page_visits
+GROUP BY 1
+)
+SELECT pv.utm_campaign,
+       pv.utm_source,
+       COUNT(first_touch_at)
+FROM first_touch AS ft
+JOIN page_visits AS pv
+  ON ft.user_id = pv.user_id
+  AND ft.first_touch_at = pv.timestamp
+GROUP BY 1, 2;
+
+--How many last touches is each campaign responsible for?
+WITH last_touch AS(
+SELECT user_id, 
+       MAX(timestamp) as last_touch_at,
+       utm_source, 
+       utm_campaign
+FROM page_visits
+GROUP BY 1
+)
+SELECT utm_campaign,
+       utm_source,
+       COUNT(last_touch_at)
+FROM last_touch
+GROUP BY 1;
+--(codecademy solution)
+WITH last_touch AS (
+  SELECT user_id,
+         MAX(timestamp) AS last_touch_at
+FROM page_visits
+GROUP BY 1
+)
+SELECT pv.utm_campaign,
+       pv.utm_source,
+       COUNT(lt.last_touch_at)
+FROM page_visits AS pv
+JOIN last_touch AS lt
+  ON pv.user_id = lt.user_id
+  AND pv.timestamp = lt.last_touch_at
+GROUP BY 1;
+
+--How many visitors made a purchase?
+SELECT COUNT(DISTINCT user_id) AS 'num_purchase'
+FROM page_visits
+WHERE page_name = '4 - purchase';
+-- or
+SELECT page_name,
+       COUNT(user_id)
+FROM page_visits
+GROUP BY 1;
+
+--How many last touches on the purchase page is each campaign responsible for?
+WITH num_last_touch AS (
+  SELECT user_id,
+       MAX(timestamp) AS 'last_touch_at',
+       page_name,
+       utm_campaign,
+       utm_source
+FROM page_visits
+GROUP BY 1
+)
+SELECT utm_campaign,
+       utm_source,
+       COUNT(last_touch_at)
+FROM num_last_touch
+WHERE page_name = '4 - purchase'
+GROUP BY 1, 2;
+
+--If the company can reinvest in 5 campaigns what would they be?
+WITH first_touch AS (SELECT user_id,
+       MIN(timestamp) AS first_touch_at,
+       utm_source,
+       utm_campaign
+FROM page_visits
+GROUP BY 1
+),
+last_touch AS (
+  SELECT user_id,
+         MAX(timestamp) AS last_touch_at,
+         utm_source,
+         utm_campaign
+  FROM page_visits
+  GROUP BY 1
+),
+first_touch_choice AS (
+SELECT utm_campaign,
+       utm_source,
+       COUNT(first_touch_at) AS 'num_users_first'
+FROM first_touch
+GROUP BY 1, 2
+ORDER BY 3 DESC
+LIMIT 3
+),
+last_touch_choice AS (
+  SELECT utm_campaign,
+         utm_source,
+         COUNT(last_touch_at) 'num_users_last'
+  FROM last_touch
+  GROUP BY 1, 2
+  ORDER BY 3 DESC
+  LIMIT 2
+)
+SELECT utm_campaign, utm_source 
+FROM first_touch_choice
+UNION
+SELECT utm_campaign, utm_source 
+FROM last_touch_choice;
+
